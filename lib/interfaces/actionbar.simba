@@ -9,6 +9,8 @@ The source for this file can be found `here <https://github.com/SRL/SRL-6/blob/m
 
 *)
 
+{$include_once ../interfaces/conversationbox.simba}
+
 {$f-}
 
 (*
