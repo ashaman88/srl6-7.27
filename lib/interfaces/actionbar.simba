@@ -1,0 +1,1440 @@
+(*
+Actionbar
+=========
+
+The actionbar file holds functions and procedures that are used in the
+Runescape Action Bar.
+
+The source for this file can be found `here <https://github.com/SRL/SRL-6/blob/master/lib/interfaces/actionbar.simba>`_.
+
+*)
+
+{$f-}
+
+(*
+type TRSActionBar
+~~~~~~~~~~~~~~~~~
+
+A type that stores functions and properties of the Runescape Action Bar.
+
+Example
+
+.. code-block:: pascal
+
+    actionBar.open();
+*)
+type
+  TRSActionBar = record(TRSInterface)
+    {$IFNDEF CODEINSIGHT}
+    __slots: TBoxArray;
+    {$ENDIF}
+    setSlots: boolean;
+  end;
+
+(*
+var actionBar
+~~~~~~~~~~~~~
+
+Variable that stores functions and properties of the Runescape Action Bar.
+
+Example
+
+.. code-block:: pascal
+
+    actionBar.close();
+*)
+var
+  actionBar: TRSActionBar;
+
+(*
+const Action Bar Slots
+~~~~~~~~~~~~~~~~~~~~~~
+
+Variable that stores functions and properties of the Runescape Action Bar.
+
+Example
+
+.. code-block:: pascal
+
+    actionBar.isSlotEmpty(ACTION_BAR_SLOT_LOW);
+*)
+const
+  ACTION_BAR_SLOT_LOW = 1;
+  ACTION_BAR_SLOT_HIGH = 14;
+
+{*
+const Action Bar Stat Bars
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Constants that store the x values of the bars on the actionbar.
+Used in TRSActionBar.__getPercent();
+
+Example
+
+.. code-block:: pascal
+
+    actionBar.__getPercent(_AB_BAR_HP_OFFSET);
+*}
+const
+  _AB_BAR_HP_OFFSET = 46;
+  _AB_BAR_ADRENALINE_OFFSET = 185;
+  _AB_BAR_PRAYER_OFFSET = 324;
+  _AB_BAR_SUMMONING_OFFSET = 463;
+
+{*
+const Action Bar Stat Bars
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Constants that store the slot values of the bars on the actionbar.
+Used in TRSActionBar.mouseIcon();
+
+Example
+
+.. code-block:: pascal
+
+    actionBar.mouseIcon(AB_BAR_HP);
+*}
+const
+  AB_BAR_HP = 1;
+  AB_BAR_ADRENALINE = 2;
+  AB_BAR_PRAYER = 3;
+  AB_BAR_SUMMONING = 4;
+
+{*
+TRSActionBar.__init
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure TRSActionBar.__init();
+
+Initiates the actionBar variable. Called at the end of this file.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 18 April 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    actionBar.__init();
+*}
+{$IFNDEF CODEINSIGHT}
+procedure TRSActionBar.__init();
+begin
+
+  with (self) do
+  begin
+    name := 'RS Action Bar';
+    ID := ID_INTERFACE_ACTION_BAR;
+    parentID := ID_INTERFACE_MAINSCREEN;
+    static := false;
+    setSlots := false;
+  end;
+end;
+{$ENDIF}
+
+{*
+TRSActionBar.__findButton
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.__findButton(out pnt: TPoint): boolean;
+
+Attempts to find the minimize button on the actionbar
+
+.. note::
+
+    - by Olly
+    - Last Updated: 24 November 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    actionBar.__findButton(p);
+*}
+{$IFNDEF CODEINSIGHT}
+function TRSActionBar.__findButton(out pnt: TPoint): boolean;
+const
+  LINE_COLOR = 10328208;
+  BACKGROUND_COLOR = 1774600;
+  TOLERANCE = 15;
+  BORDER_LINE_COLOR = 11509631;
+  BORDER_LINE_MODS = [0.10, 0.69];
+var
+  tpaBackground, tpaBorder: TPointArray;
+  atpa: T2DPointArray;
+  possibleBounds: TBoxArray;
+  i: integer;
+  b: TBox;
+  p: TPoint;
+begin
+  result := false;
+
+  if (not findColorsTolerance(tpaBorder, BORDER_LINE_COLOR, intToBox(0, 0, gameTabs.tabArea.x1, getClientBounds().y2), TOLERANCE, colorSetting(2, BORDER_LINE_MODS[0], BORDER_LINE_MODS[1]))) then
+  begin
+    print('TRSActionBar.__findButton(): Found no border color', TDebug.WARNING);
+    exit(false);
+  end;
+
+  atpa := clusterTPAEx(tpaBorder, 1, 1);
+
+  for i := 0 to high(atpa) do
+    if (length(atpa[i]) = 56) then
+    begin
+      b := getTPABounds(atpa[i]);
+
+      if (b.getWidth() = 15) and (b.getHeight() = 15) then
+        insert(b, possibleBounds);
+    end;
+
+  if (length(possibleBounds) < 1) then
+  begin
+    print('TRSActionBar.__findButton(): Failed to find any vaild bounds', TDebug.WARNING);
+    exit(false);
+  end;
+
+  for i := 0 to high(possibleBounds) do
+    if (findColorsTolerance(tpaBackground, BACKGROUND_COLOR, possibleBounds[i], TOLERANCE)) then
+     begin
+       if (inRange(length(tpaBackground), 100, 200)) then
+       begin
+         p := middleBox(possibleBounds[i]);
+         if (similarColors(getColor(p.x, p.y+1), LINE_COLOR, 50)) then
+         begin
+           print('TRSActionBar.__findButton(): Found the actionbar button @ '+toStr(p), TDebug.SUB);
+           pnt := p;
+           exit(true);
+         end;
+       end;
+     end;
+
+  print('TRSActionBar.__findButton(): Failed to find any button matches', TDebug.WARNING);
+end;
+{$ENDIF}
+
+{*
+TRSActionBar.__find
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.__find(): boolean;
+
+Returns true if the action bar is found.  Sets its coordinates in the process.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 5th July 2014 by The Mayor
+
+Example:
+
+.. code-block:: pascal
+
+    if (not actionbar.__find(h)) then
+      writeln('Failed to find the actionbar');
+*}
+{$IFNDEF CODEINSIGHT}
+function TRSActionBar.__find(out height: integer): boolean;
+const
+  BORDER_COLOR = 3945514;
+var
+  topY, bottomY, i: integer;
+  p: TPoint;
+begin
+  result := false;
+  bottomY := -1;
+
+  if (self.__findButton(p)) then
+  begin
+    topY := (p.y - 9);
+
+    for i := p.y to (p.y + 100) do
+      if (getColor(p.x, i) = BORDER_COLOR) then
+      begin
+        bottomY := i;
+        break();
+      end;
+
+    height := (abs(topY - bottomY));
+
+    if (bottomY = -1) then
+      print('TRSActionBar.__find(): Failed to find the bottom Y of the actionbar, most scripts should still function though', TDebug.WARNING);
+
+    self.setBounds([0, topY, gameTabs.tabArea.x1-1, topY + height]);
+    result := true;
+
+    if (not self.setSlots) then
+    begin
+      __slots := grid(14, 1, 29, 29, 36, 0, point(self.x1 + 67, self.y1 + 53));
+      setSlots := true;
+    end;
+  end;
+
+  if (result) then
+    print('TRSActionBar.__find(): result = true (height = '+intToStr(height)+')', TDebug.SUB)
+  else
+    print('TRSActionBar.__find(): result = false', TDebug.SUB);
+end;
+{$ENDIF}
+
+{*
+TRSActionBar.__find; overload
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.__find(): boolean; overload;
+
+Overloaded method without the height parameter.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 24 November 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    if (not actionbar.__find()) then
+      writeln('Failed to find the actionbar');
+*}
+{$IFNDEF CODEINSIGHT}
+function TRSActionBar.__find(): boolean; overload;
+var
+  foo: integer;
+begin
+  result := self.__find(foo);
+end;
+{$ENDIF}
+
+{*
+TRSActionBar.__isSlotValid
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.__isSlotValid(var slot: integer): boolean;
+
+Returns true if the 'slot' is valid.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 15 September 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.__isSlotValid(5)) then
+      actionBar.clickSlot(5);
+*}
+{$IFNDEF CODEINSIGHT}
+function TRSActionBar.__isSlotValid(var slot: integer): boolean;
+begin
+
+  if (inRange(slot, ACTION_BAR_SLOT_LOW, ACTION_BAR_SLOT_HIGH)) then
+    exit(true);
+
+  print('Specified Action Bar slot not in the range of 1 - ' + toStr(length(self.__slots)) + '.', TDebug.ERROR);
+
+  slot := 1;
+  result := false;
+end;
+{$ENDIF}
+
+{*
+TRSActionBar.__clickButton
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.__clickButton(): boolean;
+
+Clicks the minimize/maximise button.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 12 December 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.__clickButton()) then
+      writeln('clicked!');
+*}
+{$IFNDEF CODEINSIGHT}
+function TRSActionBar.__clickButton(): boolean;
+var
+  b: TBox;
+begin
+  b := [self.x2-15, self.y1+3, self.x2-3, self.y1+15];
+
+  result := pointInBox(middleBox(b), self.getBounds());
+
+  if (result) then
+    mouseBox(b, MOUSE_LEFT);
+end;
+{$ENDIF}
+
+{*
+TRSActionBar.__printWarning
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.__printWarning(methodName, resultValue: variant): variant;
+
+Prints an action bar specific warning.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 15 September 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    actionBar.__printWarning('switchToBar', -1);
+*}
+{$IFNDEF CODEINSIGHT}
+function TRSActionBar.__printWarning(methodName, resultValue: variant): variant;
+begin
+
+  print(methodName + ' will now exit, returning ' + toStr(resultValue) + '.', TDebug.WARNING);
+  exit(resultValue);
+end;
+{$ENDIF}
+
+(*
+TRSActionBar.open
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.open(): boolean;
+
+Opens the actionbar if it's closed.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 12 December 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+     actionBar.open();
+*)
+function TRSActionBar.open(): boolean;
+var
+  hei: integer;
+begin
+  result := false;
+
+  if (not self.__find(hei)) then
+    print('Cannot close the actionbar, since we can''t find it!', TDebug.ERROR);
+
+  result := true;
+
+  if (hei < 40) then
+    result := self.__clickButton()
+  else
+    print('TRSActionBar.open(): Actionbar is already open');
+
+  print('TRSActionBar.open(): result = '+boolToStr(result));
+end;
+
+(*
+TRSActionBar.getCurrentBar
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.getCurrentBar(): Integer;
+
+Returns the number of the Action Bar setup currently displayed.  (Members can
+have up to five different Action Bar setups).
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 18 April 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    if ((actionBar.getCurrentBar()) = 1) then
+      writeln('The first Action Bar setup is currently displayed.');
+*)
+function TRSActionBar.getCurrentBar(): Integer;
+begin
+
+  result := strToIntDef(getTextAtEx(intToBox(self.getBounds().x1 + 25,
+   self.getBounds().y1 + 49, self.getBounds().x1 + 35, self.getBounds().y1 + 59),
+    0, 0, 0, 3111603, 0, 'UpChars'), -1); //Color is of the number showing which bar is active.
+  print('actionBar.getCurrentBar() returned ' + toStr(result), TDebug.LOG);
+end;
+
+(*
+TRSActionBar.switchToBar
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.switchToBar(barNumber: integer; useBindKey: boolean = false): boolean;
+
+Switches to the specified action bar setup.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 18 April 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.switchToBar(barNumber)) then
+      writeln('Switched to '+toStr(barNumber));
+*)
+function TRSActionBar.switchToBar(barNumber: integer; useBindKey: boolean = false): boolean;
+var
+
+  currentBar, r, i, diff: integer;
+  timeMarker: TTimeMarker;
+  keys: tIntegerArray;
+begin
+  result := false;
+
+  if (not inRange(barNumber, 1, 5)) then
+  begin
+    print('actionBar.switchToBar: barNumber must be within 1-5.', TDebug.ERROR);
+    exit;
+  end;
+
+  currentBar:= self.getCurrentBar();
+
+  if (barNumber = currentBar) then
+    exit(true);
+
+  if (useBindKey) then
+  begin
+
+    keys:= [VK_LSHIFT, VK_0 + barNumber];
+
+    for i := 0 to 1 do
+    begin
+
+      keyDown(keys[i]);
+      wait(randomRange(10, 200 - i * 100));
+    end;
+
+    r:= random(2);
+    keyUp(keys[r]);
+
+    wait(random(60));
+
+    keyUp(keys[abs(r - 1)]);
+
+  end else
+  begin
+
+    diff := abs(currentBar - barNumber);
+
+    if (inRange(diff, 2, 3)) then
+    begin
+
+      intToBox(self.getBounds().x1 + 25, self.getBounds().y1 + 49,
+       self.getBounds().x1 + 35, self.getBounds().y1 + 59).mouse(MOUSE_RIGHT);
+      chooseOption.select([intToStr(barNumber)], 618);
+    end else
+    begin
+
+      if ((currentBar < barNumber) xor (diff > 2)) then
+        intToBox(self.getBounds().x1 + 39, self.getBounds().y1 + 50,
+         self.getBounds().x1 + 43, self.getBounds().y1 + 57).mouse(MOUSE_LEFT)
+      else
+        intToBox(self.getBounds().x1 + 16, self.getBounds().y1 + 50,
+         self.getBounds().x1 + 20, self.getBounds().y1 + 57).mouse(MOUSE_LEFT);
+    end;
+  end;
+
+  timeMarker.start();
+
+  while (timeMarker.getTime() < randomRange(3000, 4000)) do
+  begin
+
+    result := (barNumber = self.getCurrentBar());
+
+    if (result) then
+      exit;
+  end;
+end;
+
+(*
+TRSActionBar.isSlotEmpty
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.isSlotEmpty(slot: integer): boolean;
+
+Returns true if the specified Action Bar slot is empty.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 5th July 2014 by The Mayor
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.isSlotEmpty(1)) then
+      writeln('The first Action Bar slot is empty.');
+*)
+function TRSActionBar.isSlotEmpty(slot: integer): boolean;
+begin
+
+  if (not (self.__isSlotValid(slot))) then
+    exit(self.__printWarning('actionBar.isSlotEmpty()', false));
+
+  result := (getColor(self.__slots[slot - 1].getMiddle().x,
+  self.__slots[slot - 1].getMiddle().y) = 2761233);
+end;
+
+(*
+TRSActionBar.isEmpty
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.isEmpty(): boolean;
+
+Returns true if every slot in the Action Bar is empty.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 18 April 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.isEmpty()) then
+      writeln('Every slot in the Action Bar is empty!');
+*)
+function TRSActionBar.isEmpty(): boolean;
+var
+
+  i: integer;
+begin
+
+  result := false;
+
+  for i := ACTION_BAR_SLOT_LOW to ACTION_BAR_SLOT_HIGH do
+    if (not self.isSlotEmpty(i)) then
+      exit;
+
+  result := true;
+end;
+
+(*
+TRSActionBar.getSlotBox
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.getSlotBox(slot: integer): TBox;
+
+Returns a TBox of the slot, 'slot'.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 18 September 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    b := actionBar.getSlotBox(1);
+*)
+function TRSActionBar.getSlotBox(slot: integer): TBox;
+begin
+  if (not (self.__isSlotValid(slot))) then
+    exit(intToBox(-1, -1, -1, -1));
+
+  result := self.__slots[slot - 1];
+end;
+
+(*
+TRSActionBar.pointToSlot
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.pointToSlot(const p: TPoint): integer;
+
+Returns the actionbar slot where the TPoint 'p' falls within, if fails to fall
+within any will return -1
+
+.. note::
+
+    - by Olly
+    - Last Updated: 20 November 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    b := actionBar.getSlotBox(1);
+*)
+function TRSActionBar.pointToSlot(const p: TPoint): integer;
+var
+  i: byte;
+begin
+  result := -1;
+
+  for i := ACTION_BAR_SLOT_LOW to ACTION_BAR_SLOT_HIGH do
+    if (pointInBox(p, self.getSlotBox(i))) then
+      exit(i);
+end;
+
+(*
+TRSActionBar.clickSlot
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.clickSlot(slot: integer; clickType: integer = MOUSE_LEFT): boolean;
+
+Generic function to click a non-empty slot in the Action Bar. Will click what
+'clickType' is set to (default set as a left click). Returns true if the slot is
+non-empty, false if otherwise.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 18 April 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.clickSlot(1)) then
+      writeln('There was something in slot 1 and we clicked it!');
+*)
+function TRSActionBar.clickSlot(slot: integer; clickType: integer = MOUSE_LEFT): boolean;
+begin
+
+  if (not (self.__isSlotValid(slot))) then
+    exit(self.__printWarning('actionBar.clickSlot()', false));
+
+  if (self.isSlotEmpty(slot)) then
+    exit(false);
+
+  self.__slots[slot - 1].mouse(clickType);
+
+  result := true;
+end;
+
+(*
+TRSActionBar.isSlotActive
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.isSlotActive(slot: integer): boolean;
+
+Returns true if the specified Action Bar slot is activated (i.e. has been clicked on/has the
+white border).
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 21 January 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.isSlotActive(1)) then
+      writeln('The first Action Bar slot is activated.');
+*)
+function TRSActionBar.isSlotActive(slot: integer): boolean;
+begin
+
+  if (not (self.__isSlotValid(slot))) then
+    exit(self.__printWarning('actionBar.isSlotActive()', false));
+
+  result := (getColor(self.__slots[slot - 1].x1-1,
+   self.__slots[slot - 1].y2-1) = 13158600); //Color is of the white box present outside of an active slot.
+end;
+
+(*
+TRSActionBar.isLocked
+~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.isLocked(): boolean;
+
+Returns true if the Action Bar is locked.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 5th July 2014 by The Mayor
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.isLocked()) then
+      writeln('The Action Bar is locked.');
+*)
+function TRSActionBar.isLocked(): boolean;
+const
+  SPECIFIC_BLACK_COLOR = 1775120; // Point between the shackle and the body.
+begin                             // I.e. the gap when it's unlocked
+  result := (not (getColor(self.x2 - 9, self.y2 - 13) = SPECIFIC_BLACK_COLOR));
+end;
+
+{*
+TRSActionBar.__toggleLock
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.__toggleLock(lock: boolean): boolean;
+
+Internal function to toggle the lock of the Action Bar.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 5th July 2014 by The Mayor
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.__toggleLock(true)) then
+      writeln('Successfully locked the Action Bar.');
+*}
+{$IFNDEF CODEINSIGHT}
+function TRSActionBar.__toggleLock(lock: boolean): boolean;
+var
+
+  timeMarker: TTimeMarker;
+begin
+
+  if (((lock) and (not self.isLocked())) or ((not lock) and (self.isLocked()))) then //Lape currently does weird things with xor
+  begin
+
+    intToBox(actionBar.x2 - 15, actionBar.y2 - 17,
+    actionBar.x2 - 7, actionBar.y2 - 5).mouse(MOUSE_LEFT);
+
+    timeMarker.start();
+
+    repeat
+
+      wait(randomRange(10, 30));
+      result := (lock = self.isLocked());
+    until (result or (timeMarker.getTime() > randomRange(1900, 2300)));
+  end else
+    result := true;
+end;
+{$ENDIF}
+
+(*
+TRSActionBar.lock
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.lock(): boolean;
+
+Locks the Action Bar if it is unlocked.  Returns true on success.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 18 April 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.lock()) then
+      writeln('Action Bar is now, or already was, locked.');
+*)
+function TRSActionBar.lock(): boolean;
+begin
+
+  result := self.__toggleLock(true);
+end;
+
+(*
+TRSActionBar.unlock
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.unlock(): boolean;
+
+Unlocks the Action Bar if it is locked.  Returns true on success.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 18 April 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.unlock()) then
+      writeln('Action Bar is now, or alreay was, unlocked.');
+*)
+function TRSActionBar.unlock(): boolean;
+begin
+
+  result := self.__toggleLock(false);
+end;
+
+(*
+TRSActionBar.clearSlot
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.clearSlot(slot: integer): boolean;
+
+Clears the specified Action Bar slot.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 5th July 2014 by The Mayor
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.clearSlot(1)) then
+      writeln('Successfully cleared slot 1 of the Action Bar.');
+*)
+function TRSActionBar.clearSlot(slot: integer): boolean;
+var
+
+  sloTBox: TBox;
+begin
+
+  if (not (self.__isSlotValid(slot))) then
+    exit(self.__printWarning('actionBar.clearSlot()', false));
+
+  if (self.isSlotEmpty(slot)) then
+    exit(true);
+
+  self.unlock();
+
+  wait(randomRange(314, 504));
+
+  mouse(point(self.__slots[slot - 1].x1, self.__slots[slot - 1].y1).rand(29, 27), MOUSE_MOVE);
+  wait(random(200));
+  dragMouse(point(50 + random(450), 220 + random(140)));
+
+  wait(randomRange(650, 850));
+
+  result := self.isSlotEmpty(slot);
+end;
+
+(*
+TRSActionBar.clear
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.clear(): boolean;
+
+Clears every slot of the Action Bar.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 5th July 2014 by The Mayor
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.clear()) then
+      writeln('Successfully cleared the Action Bar.');
+*)
+function TRSActionBar.clear(): boolean;
+var
+  t: integer;
+begin
+  if (self.isEmpty()) then
+    exit(true);
+
+  t := getSystemTime() + randomRange(3000, 5500);
+  repeat
+    intToBox(self.x2 - 15, self.y2 - 36, self.x2 - 7, self.y2 - 26).mouse(MOUSE_RIGHT);
+    chooseOption.select(['Clear', 'lear']);
+
+    if conversationBox.isOpen(randomRange(2000, 3500)) then
+    begin
+      conversationBox.selectOption(1);
+      wait(randomRange(1000, 1500));
+    end;
+    if self.isEmpty() then
+    begin
+      result := true;
+      break;
+    end;
+  until (getSystemTime() > t);
+end;
+
+{*
+TRSActionBar.__getAbilityCooldown
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.getAbilityCooldown(slot: integer): integer;
+
+Returns integer representation (0 - 100) of the cooldown of the ability
+in the specified slot.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 15 September 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    result := self.__getAbilityCooldown(self.__slots[slot - 1], true);
+*}
+{$IFNDEF CODEINSIGHT}
+function TRSActionBar.__getAbilityCooldown(boxToCheck: TBox; inActionBar: boolean = false): integer;
+var
+  colorFix, clientBitmap, i, len, sumTotal, tempBitmap: integer;
+  valid: boolean;
+  midPoint: TPoint;
+  boxEdge, line, tpa: TPointArray;
+  edgeSegments: T2DPointArray;
+begin
+  result := - 1;
+
+  try
+    clientBitmap := bitmapFromClient(boxToCheck.x1, boxToCheck.y1, boxToCheck.x2, boxToCheck.y2);
+    setBitmapName(clientBitmap, 'Cooldown Bitmap');
+
+    if (inActionBar) then
+    begin
+
+      tpa := tpaFromBox(intToBox(boxToCheck.x1 + 2, boxToCheck.y1 + 18, boxToCheck.x1 + 8, boxToCheck.y1 + 25));
+      tpa.offset(point( - boxToCheck.x1, - boxToCheck.y1));
+
+      for i := 0 to high(tpa) do
+        fastSetPixel(clientBitmap, tpa[i].x, tpa[i].y, 0);
+    end;
+
+    tempBitmap := brightnessBitmap(clientBitmap, 100);
+    freeBitmap(clientBitmap);
+
+    clientBitmap := posterizeBitmap(tempBitmap, 60);
+    freeBitmap(tempBitmap);
+
+    tempBitmap := contrastBitmap(clientBitmap, 30);
+    freeBitmap(clientBitmap);
+
+    clientBitmap := desaturate(tempBitmap);
+    freeBitmap(tempBitmap);
+
+    boxToCheck.offset(point(- boxToCheck.x1, - boxToCheck.y1));
+
+    if ((boxToCheck.x2 mod 2) = 0) then
+      boxEdge := tpaFromLine(boxToCheck.x2 div 2 - 1, 0, 0, 0)
+    else
+      boxEdge := tpaFromLine(boxToCheck.x2 div 2, 0, 0, 0);
+
+    appendTPA(boxEdge, tpaFromLine(0, 1, 0, boxToCheck.y2));
+    appendTPA(boxEdge, tpaFromLine(1, boxToCheck.y2, boxToCheck.x2, boxToCheck.y2));
+    appendTPA(boxEdge, tpaFromLine(boxToCheck.x2, boxToCheck.y2 - 1, boxToCheck.x2, 0));
+    appendTPA(boxEdge, tpaFromLine(boxToCheck.x2 - 1, 0, boxEdge[0].x + 1, 0));
+
+    len := length(boxEdge);
+
+    for i := 0 to (len - 1) do
+    begin
+
+      if (inActionBar) then
+      begin
+
+        if (inRange(i, 0, len div 2)) then
+          midPoint := point(14, 15)
+        else
+          midPoint := point(15, 14);
+      end else
+      begin
+
+        if (inRange(i, 0, len div 2)) then
+          midPoint := point(13, 14)
+        else
+          midPoint := point(14, 13);
+      end;
+
+      tpaFromLineWrap(midPoint.x, midPoint.y, boxEdge[i].x, boxEdge[i].y, line);
+      line.sortFromPoint(midPoint);
+      line.invert();
+
+      if (i = 0) then
+        setlength(line, 6)
+      else
+        setlength(line, length(line) - 3);
+
+      sumTotal := 0;
+      sumTotal := sumIntegerArray(fastGetPixels(clientBitmap, line));
+
+      if (sumTotal <> 0) then
+      begin
+
+        result := ceil((round(fixD(degrees(arcTan2(boxEdge[i].x - midPoint.x, - (boxEdge[i].y - midPoint.y))))) / 360.0) * 100) + 1;
+
+        if (result = 99) then
+        begin
+
+          colorFix := getColor(boxToCheck.x1 + 14, boxToCheck.y1 + 2);
+
+          if ((colorFix = 6706) or (colorFix = 1710617)) then
+          begin
+
+            print('tabAbilityBook.__getAbilityCooldown() used the colorFix check.', TDebug.LOG);
+            result := 100;
+          end;
+        end;
+
+        break;
+      end else
+        if (i = (len - 1)) then
+          result := 0;
+    end;
+
+  finally
+    freeBitmap(clientBitmap);
+  end;
+end;
+{$ENDIF}
+
+(*
+TRSActionBar.getAbilityCooldown
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.getAbilityCooldown(slot: integer): integer;
+
+Returns integer representation (0 - 100) of the cooldown of the ability
+in the specified slot.
+
+.. note::
+
+    - by euphemism
+    - Last Updated: 18 April 2013 by euphemism
+
+Example:
+
+.. code-block:: pascal
+
+    if (actionBar.getAbilityCooldown(1) = 100) then
+      writeln('The ability in slot 1 is at 100% and ready to use.');
+*)
+function TRSActionBar.getAbilityCooldown(slot: integer): integer;
+begin
+  if (not (self.__isSlotValid(slot))) then
+    exit(self.__printWarning('actionBar.getAbilityCooldown()', -1));
+
+  if (self.isSlotEmpty(slot)) then
+    exit(-1);
+
+  result := self.__getAbilityCooldown(self.__slots[slot - 1], true);
+
+  print('actionBar.getAbilityCooldown() checked slot ' + toStr(slot) + 'and got ' + toStr(result), TDebug.LOG);
+end;
+
+{*
+TRSActionBar.__getPercent
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.__getPercent(bar: integer): byte;
+
+Returns the percentage of the given actionbar bar.
+
+.. note::
+
+    - by Turpinator
+    - Last Updated: 12 December 2013 by Turpinator
+
+Example:
+
+.. code-block:: pascal
+
+    actionBar.__getPercent(AB_BAR_HP);
+*}
+{$IFNDEF CODEINSIGHT}
+function TRSActionBar.__getPercent(bar: integer): byte;
+const
+  BACKGROUND_COLOR = 2894115;
+var
+  xx, yy: integer;
+begin
+  xx := (self.x1 + bar);
+  yy := (self.y1 + 23);
+
+  for result := 100 downto 1 do
+    if (getColor(xx + result, yy) <> BACKGROUND_COLOR) then
+      break();
+end;
+{$ENDIF}
+
+
+(*
+TRSActionBar.getHPPercent
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.getHPPercent: integer;
+
+Returns the players hitpoints percentage.
+
+.. note::
+
+    - by Turpinator
+    - Last Updated: 12 December 2013 by Turpinator
+
+Example:
+
+.. code-block:: pascal
+
+     writeln(actionBar.getHPPercent());
+*)
+function TRSActionBar.getHPPercent: integer;
+begin
+  result := self.__getPercent(_AB_BAR_HP_OFFSET);
+end;
+
+(*
+TRSActionBar.getAdrenalinePercent
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.getAdrenalinePercent: integer;
+
+Returns the players adrenaline percent.
+
+.. note::
+
+    - by Turpinator
+    - Last Updated: 12 December 2013 by Turpinator
+
+Example:
+
+.. code-block:: pascal
+
+     writeln(actionBar.getAdrenalinePercent());
+*)
+function TRSActionBar.getAdrenalinePercent: integer;
+begin
+  result := self.__getPercent(_AB_BAR_ADRENALINE_OFFSET);
+end;
+
+(*
+TRSActionBar.getPrayerPercent
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.getPrayerPercent: integer;
+
+Returns the players prayer percentage.
+
+.. note::
+
+    - by Turpinator
+    - Last Updated: 12 December 2013 by Turpinator
+
+Example:
+
+.. code-block:: pascal
+
+     writeln(actionBar.getPrayerPercent());
+*)
+function TRSActionBar.getPrayerPercent: integer;
+begin
+  result := self.__getPercent(_AB_BAR_PRAYER_OFFSET);
+end;
+
+(*
+TRSActionBar.getSummoningPercent
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.getSummoningPercent: integer;
+
+Returns the players summoning percent
+
+.. note::
+
+    - by Turpinator
+    - Last Updated: 12 December 2013 by Turpinator
+
+Example:
+
+.. code-block:: pascal
+
+     writeln(actionBar.getSummoningPercent());
+*)
+function TRSActionBar.getSummoningPercent: integer;
+begin
+  result := self.__getPercent(_AB_BAR_SUMMONING_OFFSET);
+end;
+
+(*
+TRSActionBar.mouseIcon
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure TRSActionBar.mouseIcon(icon, button: integer= MOUSE_MOVE);
+
+Returns the players summoning percent
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 4 February 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+     mouseIcon(AB_Bar_HP, MOUSE_LEFT);
+*)
+procedure TRSActionBar.mouseIcon(icon, button: integer= MOUSE_MOVE);
+begin
+  if not inRange(icon, 1, 4) then
+    exit;
+  mouseCircle((self.getbounds().x1+26)+(icon-1)*140, self.getbounds().y1+18, 10, button);
+end;
+
+(*
+TRSActionBar._isRetaliateEnabled
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar._isRetaliateEnabled: boolean;
+
+Returns the whether autoretaliate is on or not
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 5 February 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+     if actionBar._isRetaliateEnabled then
+        writeln('AutoRetaliate is enabled!');
+*)
+function TRSActionBar._isRetaliateEnabled: boolean;
+const
+  RETALIATE_COLOR = 11842224;
+begin
+  result := getColor(self.getbounds().x1+170,self.getbounds().y1+16) = RETALIATE_COLOR;
+  print('actionBar._isRetaliateEnabled(): result = '+boolToStr(result), TDebug.SUB);
+end;
+
+
+(*
+TRSActionBar.setRetaliate
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSActionBar.setRetaliate(enabled: boolean): boolean;
+
+Enables or disables autoretaliate. Returns true if successfully disables/enabled
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 4 February 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+     mouseIcon(AB_Bar_HP, MOUSE_LEFT);
+*)
+function TRSActionBar.setRetaliate(enabled: boolean): boolean;
+var
+  t: Integer;
+begin
+  if enabled then
+    result := (self._isRetaliateEnabled()) else
+    result := not (self._isRetaliateEnabled());
+
+  print('actionBar.setRetaliate(): result = '+boolToStr(result), TDebug.SUB);
+
+  if result then
+    exit;
+
+  self.mouseIcon(AB_Bar_ADRENALINE, MOUSE_LEFT);
+
+  t := getSystemTime() + randomRange(2000, 3000);
+
+  while (t > getSystemTime()) and (not result) do
+  begin
+    if enabled then
+      result := (self._isRetaliateEnabled()) else
+      result := not (self._isRetaliateEnabled());
+
+    wait(100 + random(50));
+  end;
+
+  print('actionBar.setRetaliate(): result = '+boolToStr(result), TDebug.SUB);
+end;
+
+begin
+  actionBar.__init();
+end;
+
+{$f+}

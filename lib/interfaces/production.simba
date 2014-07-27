@@ -1,0 +1,697 @@
+(*
+Production
+==========
+
+The production file holds functions and procedures that are used in the
+Runescape production screen.
+
+The source for this file can be found `here <https://github.com/SRL/SRL-6/blob/master/lib/interfaces/production.simba>`_.
+
+*)
+
+{$f-}
+
+{*
+const Internal
+~~~~~~~~~~~~~~
+
+Internal productionScreen constants.
+
+*}
+const
+  _PRODUCTION_SLOTS_OFFSET: TPoint = [35, 91];
+
+(*
+type TRSProductionScreen
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+A type that stores the production interface properties.
+*)
+type
+  TRSProductionScreen = record (TRSInterface)
+    {$IFNDEF CODEINSIGHT}
+    __bmp: integer;
+    __isLoaded: boolean;
+    {$ENDIF}
+  end;
+
+(*
+var productionScreen
+~~~~~~~~~~~~~~~~~~~~
+
+Variable that stores functions and properties of the Runescape production interface.
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen.isOpen() then
+      writeln('Production screen is open!');
+*)
+var
+  productionScreen: TRSProductionScreen;
+
+{*
+TRSProductionScreen.__init
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure TRSProductionScreen.__init();
+
+Initializes the TRSProductionSceen.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 06 November 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    productionScreen.__init();
+*}
+{$IFNDEF CODEINSIGHT}
+procedure TRSProductionScreen.__init();
+begin
+  with (self) do
+  begin
+    name := 'RS Production Screen';
+    ID := ID_INTERFACE_PRODUCTION;
+    parentID := -1;
+    static := false;
+    __isLoaded := false;
+  end;
+end;
+{$ENDIF}
+
+{$IFNDEF CODEINSIGHT}
+procedure __loadProductionScreen();
+begin
+  with (productionScreen) do
+  begin
+    __bmp := BitmapFromString(487, 6, 'meJztl21r40YUhTf4VZZk62X0ZkmWJTshdZOlTRrKtqEsy1IathRKvvTL/v+/sY99vNNS+i2EmFTiMty5c+6ZM4PnzrjO/W0d1bmfhDPfnZ69eYPdXnefPtz89cfPinRLD3t8uKtSbzIaTsejJA66OqmX0XlbYIXxi+QYwb7ZFJtVbkJPAFq6OETIpaUrvEbFJipFIITEpmhGusDmnkOuCMUTzmeawuoh8uIiM7NolklTmjKLooXrzSbAMhPEoVekAeY5k/FwMPfdLJ7bYOg74fwYwcosIGXuTgWIDww4RPa57pSu8BoVm6gUgRASm6IZ6QJjj/a5B0LxICnuRfYinyaySMJ4ASxsqmSZBSZatJV5Zaf7WUXuzqvHh3cP91fY/febjz99+8OuwvDfve1+/O7cdYYUbeK0lGjPGVKlaX99f2srNkO/f7hSVacWebPxgTzFQdthselBVWr3hKAE4ABDKgpRxah8WuI2FwcqTPugbbEpmNYFszBaI2YZlKWtEPnLityu802Tl3nI77YuoqaKmzKpC0P1zpNFV5sk9GfTEZGmjHD4tVd5iE+dp4WB+5GW4AFjcICRRS4MjMoXj83FgQrD13T/TMFwGIJZGIwIZhl6kb3Ip4jcrJI0mrvOqCnjTZNwEF7f6X5ukW2V/vnxdrP0jD8ooyEV++669Z0BBZl2Mho4k1FVhDytKc7h/PjYllG9d11MxQaAv21SaJmOKSBHCVeJnVQ3CEEwWpQk0bVi9sKMr/Xqvvt6E6WKKAUYyxcD09HVjtld1e6JVjAAdp9PROR2XcSBl5vFRZt1TdYs4zIP9hdfvDhfZ7ST0YggfuA7cbhYl2m32sOwZR4QBENEQUbpKpdRDkUWeQzh85JnVFndyiiiFGDMKAamo3vA7GfERA5YtIIte5G9yKeIbDLeKnHgdnXWVq/2dD+3yOuL6tP7G8p1vjijeteJgznjwW67dJ1xaubebErFfny4u1gbqrTe2874jGf2/c2mzv3An9R5JFW6I6xO3VB2UTZOUDugywVH9wsMWotdps3VBuqS+s8d01ZosQLb+1ETWc7TEdnWCT9dieR/Ig8P2qo4iuTfpY3QSiQ+QRsnCEy52zVsJv4qEv+y+5vQ5h7Oi8nNUaSoJFIAhujSWrBm70X2Ip8sMrnsivb/cbqfVeTtVfvb/dWujXhsY5er8Je7y/1b2u2//ju5z/f9/pfZf/33r887HI3k7efeejs148f54hp66+0EjaPxBUJhV/A=');
+    setBitmapName(__bmp, 'SRL - ProductionScreen Mask');
+    __isLoaded := true;
+  end;
+
+  addOnTerminate('__freeProductionScreen');
+end;
+{$ENDIF}
+
+{$IFNDEF CODEINSIGHT}
+procedure __freeProductionScreen();
+begin
+  with (productionScreen) do
+  begin
+    __isLoaded := false;
+    freeBitmap(__bmp);
+  end;
+end;
+{$ENDIF}
+
+(*
+TRSProductionScreen.__find
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSProductionScreen.__find(): boolean;
+
+Returns true if the production screen is detected, if detected will set the bounds.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 20 May 2014 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen.__find()) then
+      writeln('bounds are set!');
+*)
+{$IFNDEF CODEINSIGHT}
+function TRSProductionScreen.__find(): boolean;
+var
+  fx, fy: integer;
+begin
+  result := false;
+
+  if (not self.__isLoaded) then
+    __loadProductionScreen();
+
+  freeze();
+  // debugBitmap(self.__bmp);
+  try
+    if (findBitmapTolerance(self.__bmp, fx, fy, 10, colorSetting(1))) then
+      if (countColor(clWhite, TBox([fx + 270, fy + 20, fx + 450, fy + 40])) > 15) then  // look for white item text to verify
+      begin
+        self.setBounds([fx - 8, fy - 28, fx + 495, fy + 297]);
+        result := true;
+      end;
+  finally
+    unFreeze();
+  end;
+end;
+{$ENDIF}
+
+(*
+TRSProductionScreen.isOpen
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSProductionScreen.isOpen(waitTime: integer = 0): boolean;
+
+Returns true if the production screen is open, includes a optional parameter
+'waitTime' (default 0) which will search for the production screen until
+'waitTime' is reached.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 06 November 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen.isOpen()) then
+      writeln('it''s open!');
+*)
+function TRSProductionScreen.isOpen(waitTime: integer = 0): boolean;
+var
+  t: UInt64;
+begin
+  result := false;
+  t := (getTickCount64() + waitTime);
+
+  while (not result) and (t >= getTickCount64()) do
+  begin
+    result := self.__find();
+    wait(randomRange(20, 50));
+  end;
+end;
+
+(*
+TRSProductionScreen.clickStart
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSProductionScreen.clickStart(): boolean;
+
+Attempts to click the blue "start" button, returns if succesfull or not.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 06 November 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen.clickStart()) then
+      writeln('We started making something!');
+*)
+function TRSProductionScreen.clickStart(space: boolean = true): boolean;
+var
+  b: TBox;
+  timeOut: Integer;
+begin
+  result := false;
+
+  b := [self.x1 +252, self.y2 -30, self.x2 -29, self.y2 -3];
+
+  // try Space key first
+  if space then
+  begin
+    timeOut := (getSystemTime() + randomRange(1500, 1900));
+    repeat
+      multiType(VK_SPACE, randomRange(30, 50), 3);
+      wait(100 + random(50));
+      result := (not self.isOpen());
+    until((getSystemTime() > timeOut) or result);
+
+    if (result) then
+      exit();
+  end;
+
+  // click the button as a failsafe
+  mouseBox([self.x1 +252, self.y2 -30, self.x2 -29, self.y2 -3], MOUSE_MOVE);
+
+  // this is a failsafe in case the productionscreen closes (from the space key) while moving the mouse
+  if (self.isOpen()) then
+  begin
+    fastClick(MOUSE_LEFT);
+    wait(50 + random(50));
+  end else
+    exit(true);
+
+  // wait for the productionscreen to close
+  timeOut := (getSystemTime() + randomRange(5000, 6000));
+  while (timeOut > getSystemTime()) do
+  begin
+    if (not self.isOpen()) then
+    begin
+      result := true;
+      break;
+    end;
+
+    wait(50 + random(50));
+  end;
+
+  print('TRSProductionScreen.clickStart(): result = '+boolToStr(result), TDebug.SUB);
+end;
+
+(*
+TRSProductionScreen.getSkill
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSProductionScreen.getSkill(): string;
+
+Returns the type of skill the open production screen is for.
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 01 January 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen.getSkill()= SKILL_SMITHING) then
+      writeln('The smithing production screen is open!');
+*)
+function TRSProductionScreen.getSkill(): Integer;
+var
+  i: Integer;
+  intskillarray: TIntegerArray;
+  b: TBox;
+  s: String;
+  skillarray: TStringArray;
+  tpa : TPointArray;
+  atpa : T2DPointArray;
+begin
+  if (self.isOpen()) then
+  begin
+    b := [self.x1 +190, self.y1 +3, self.x2 -160, self.y1 +25];
+    findColorsTolerance(tpa, 697806, b, 63,colorSetting(0));
+
+    if length(tpa) < 100 then
+    begin
+      print('productionScreen.getSkill(): Unable to find enough text colors for production screen skill type', TDebug.ERROR);
+      exit;
+    end;
+
+    skillarray := ['Crafting','Smithing','Herblore','Cooking','Fletching'];
+    intskillarray := [SKILL_CRAFTING, SKILL_SMITHING, SKILL_HERBLORE, SKILL_COOKING, SKILL_FLETCHING];
+
+    atpa := tpa.cluster(5);
+
+    b:= atpa.getbounds();
+    b.edit(-2,-2,+2,+2);
+    b.setlimit(self.getbounds());
+
+    s:=Replace(tesseractgettext(b.x1,b.y1,b.x2,b.y2, FILTER_SMALL_CHARS), ' ', '', [rfReplaceAll]);
+
+    for i:=0 to high(skillarray) do
+    begin
+      if (pos(lowercase(skillarray[i]), lowercase(s)) > 0) then
+      begin
+        result:= intskillarray[i];
+        break;
+      end;
+    end;
+  end;
+
+  print('TRSProductionScreen.getType(): result = ' + toStr(result), TDebug.SUB);
+end;
+
+{*
+TRSLobbyWorlds._scrollToItem
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSLobbyWorlds._scrollToItem(slot: integer): boolean;
+
+Uses mouseScroll to find the correct box slot. If slot is > 20, it will scroll down
+Function is internal.  Use TRSProductionScreen.selectBox instead.
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 01 January 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen._scrollToItem(1)) then
+      writeln('scrolled up to slot 1!');
+*}
+function TRSProductionScreen._scrollToItem(slot: integer): boolean;
+const
+  __COLOR_SCROLL_BAR = 1266553;
+var
+  p: TPoint;
+  t: UInt64;
+  down: boolean;
+begin
+  if (not self.isOpen()) then
+    exit(false);
+
+  t := (getTickCount64() + 3000);
+
+  repeat
+    if (slot>20) and ((getColor(self.x1 + 223, self.y1 + 285) = __COLOR_SCROLL_BAR) or (getColor(self.x1 + 223, self.y1 + 286) = __COLOR_SCROLL_BAR)) then
+    begin
+      result := true;
+      break;
+    end;
+
+    if (slot<21) and ((getColor(self.x1 + 223, self.y1 + 76) = __COLOR_SCROLL_BAR) or (getColor(self.x1 + 223, self.y1 + 77) = __COLOR_SCROLL_BAR)) then
+    begin
+      result := true;
+      break;
+    end;
+
+    mousebox([self.x1 + 216, self.y1 + 77, self.x1 + 227, self.y2 - 29]);
+    getMousePos(p.x,p.y);
+
+    if (slot>20) then
+      down := true
+    else
+      down := false;
+
+    mouseScroll(p, 3 + random(5), down);
+    wait(50 + random(50));
+  until(getTickCount64() > t);
+
+  print('TRSProductionScreen._scrollToItem(): result = ' + lowercase(boolToStr(result)), TDebug.SUB);
+end;
+
+(*
+TRSProductionScreen._getProductionBoxes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSProductionScreen._getProductionBoxes(): TBoxArray;
+
+Returns a TBoxArray of the possible production screen options.
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 01 January 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    tba:= (productionScreen._getProductionBoxes(slot));
+
+    mousebox(tba[slot - 1],Mouse_Left);
+*)
+function TRSProductionScreen._getProductionBoxes(slot: integer): TBoxArray;
+var
+  offset: Integer;
+begin
+  if not (self._scrollToItem(slot)) then
+    exit;
+
+  if (slot>20) then
+    offset:= 13;
+
+  result := grid(4, 5, 43, 43, 50, 50, point(self.x1 + _PRODUCTION_SLOTS_OFFSET.x, self.y1 + _PRODUCTION_SLOTS_OFFSET.y - offset));
+end;
+
+(*
+TRSProductionScreen._getValidBoxes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSProductionScreen._getValidBoxes(): TIntegerArray;
+
+Returns all valid production boxes (that are unlocked).
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 01 January 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    tia:= (productionScreen._getValidBoxes(1));
+    if not (tia.isInArray(1)) then
+      exit;
+*)
+function TRSProductionScreen._getValidBoxes(slot: Integer): TIntegerArray;
+var
+  i, offset: Integer;
+  tba: TBoxArray;
+begin
+  if (self.isOpen()) then
+  begin
+    if not (self._scrollToItem(slot)) then
+      exit;
+
+    if (slot>20) then
+      offset:= 20;
+
+    tba:= self._getProductionBoxes(slot);
+
+    for i:= 0 to high(tba) do
+      if (countcolor(1269688,tba[i]) > 50) or (countcolor(1356525,tba[i]) > 50) then
+      begin
+        setlength(result, length(result) + 1);
+        result[high(result)] := i + offset + 1;
+      end;
+  end;
+
+  print('TRSProductionScreen._getValidBoxes(): result = ' + toStr(result), TDebug.SUB);
+end;
+
+(*
+TRSProductionScreen._getSelectedBox
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSProductionScreen._getSelectedBox(): integer;
+
+Returns the selected box. Uses slot parameter to determine need for scrolling
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 01 January 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen._getSelectedBox()= 1) then
+      writeln('Box 1 is selected!');
+*)
+function TRSProductionScreen._getSelectedBox(slot: Integer): Integer;
+var
+  i, offset: Integer;
+  tba: TBoxArray;
+begin
+  if (self.isOpen()) then
+  begin
+    if not self._scrollToItem(slot) then
+      exit;
+
+    if (slot>20) then
+      offset:= 20;
+
+    tba:=self._getProductionBoxes(slot);
+
+    for i:= 0 to high(tba) do
+      if (countcolor(1356525, tba[i]) > 50) then
+        result := i + offset + 1;
+  end;
+
+  print('TRSProductionScreen._getSelectedBox(): result = ' + toStr(result), TDebug.SUB);
+end;
+
+(*
+TRSProductionScreen.getSelectedBoxText
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSProductionScreen.getSelectedBoxText(): string;
+
+Returns the type of skill the open production screen is for.
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 01 January 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen.getSelectedBoxText()= 'hatchet') then
+      writeln('The hatchet option is selected!');
+*)
+function TRSProductionScreen.getSelectedBoxText: String;
+var
+  b: TBox;
+  tpa : TPointArray;
+  atpa : T2DPointArray;
+begin
+  if (self.isOpen()) then
+  begin
+    b:= self.getBounds();
+    b.edit(+276, +49, -44, -253);
+
+    findColorsTolerance(tpa, 16777215, b, 0,colorSetting(0));
+
+    if length(tpa) < 5 then
+      exit;
+
+    atpa := tpa.cluster(5);
+
+    b:= atpa.getbounds();
+    b.edit(-2,-2,+2,+2);
+    b.setlimit(self.getbounds());
+
+    result:=trim(tesseractgettext(b.x1,b.y1,b.x2,b.y2, FILTER_SMALL_CHARS));
+  end;
+
+  print('TRSProductionScreen.getSelectedBoxText(): result = ' + (result), TDebug.SUB);
+end;
+
+(*
+TRSConversationBox.findSelectedProductionText
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSConversationBox.findSelectedProductionText(txt: TStringArray): boolean;
+
+Returns true if 'txt' is found in the selected option on the right side of the production menu.
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: January 01, 2013 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen.findSelectedProductionText(['atchet'])) then
+       writeln('Selected option is a hatchet!');
+*)
+function TRSProductionScreen.findSelectedProductionText(txt: TStringArray): boolean;
+var
+  i: Integer;
+  text: String;
+begin
+  if (not self.isOpen()) then
+    exit();
+
+  text:= self.getSelectedBoxText();
+
+  for i := 0 to high(txt) do
+  begin
+    result:= (pos(txt[i], text) > 0);
+    if result then
+      break;
+  end;
+
+  print('TRSProductionScreen.findSelectedProductionText(): result = ' + lowercase(boolToStr(result)), TDebug.SUB);
+end;
+
+(*
+TRSProductionScreen.selectBox
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSProductionScreen.selectBox(): boolean;
+
+Returns true if selected the designated box (1-30). Will scroll if needed. Additional option to verify correct item selected through text menu on right.
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 01 January 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen.selectBox(1)) then
+      writeln('Successfully selected box 1!');
+*)
+function TRSProductionScreen.selectBox(slot: Integer; itemtxt: TStringArray = ['']): Boolean;
+var
+  offset: Integer;
+  t: TTimeMarker;
+  b: TBox;
+  tba: TBoxArray;
+  tia: TIntegerArray;
+begin
+  if (self.isOpen()) then
+  begin
+    if not (self._scrollToItem(slot)) then
+      exit;
+
+    result:= (self._getSelectedBox(slot) = slot);
+
+    if (result) and (length(itemtxt[0]) > 0) then
+      result:= (self.findSelectedProductionText(itemtxt));
+
+    if (result) then
+      exit;
+
+    tia:= (self._getValidBoxes(slot));
+    if not (tia.isInArray(slot)) then
+      exit(false);
+
+    tba:= (self._getProductionBoxes(slot));
+
+    if (slot>20) then
+      offset:= 20;
+
+    mousebox(tba[slot - offset - 1],Mouse_Left);
+
+    t.start;
+    repeat
+      result:= (self._getSelectedBox(slot) = slot);
+      if (result) then
+        break;
+      wait(50 + random(50));
+    until (t.gettime() > 10000);
+
+    if (length(itemtxt[0]) > 0) then
+      result:= (self.findSelectedProductionText(itemtxt));
+  end;
+
+  print('TRSProductionScreen.selectBox(): result = ' + lowercase(boolToStr(result)), TDebug.SUB);
+end;
+
+begin
+  productionScreen.__init();
+end;
+
+{$f+}

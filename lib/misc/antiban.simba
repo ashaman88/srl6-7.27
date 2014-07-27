@@ -1,0 +1,1140 @@
+(*
+Antiban
+=======
+
+The antiban include contains some useful functions that can be used for antiban.
+Antiban is a term used for human-like script behavior, and antiban functions are
+used throughout scripts to lessen the chance of a ban.
+
+The source for this file can be found
+`here <https://github.com/SRL/SRL-6/blob/master/lib/misc/antiban.simba>`_.
+
+*)
+
+{$f-}
+
+(*
+randomRClickItem
+~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure randomRClickItem();
+
+Randomly rights clicks an item in the backpack, randomly chooses Cancel or
+Examine.
+
+.. note::
+
+    - by phantombmx/EvilChicken!, idea by Naum
+    - Last Updated: 13 August 2013 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    randomRClickItem();
+*)
+procedure randomRClickItem();
+var
+  t, i: integer;
+  slots: TIntegerArray;
+begin
+  t := gameTabs.getActiveTab();
+
+  if (t <> TAB_BACKPACK) then
+    gameTabs.openTab(TAB_BACKPACK);
+
+  if (tabBackpack.count() > 0) then
+  begin
+    for i := BACKPACK_SLOT_LOW to BACKPACK_SLOT_HIGH do
+      if (tabBackpack.isItemInSlot(i)) then
+        insert(i, slots);
+
+    tabBackpack.mouseSlot(slots[random(high(slots))], MOUSE_RIGHT);
+
+    if (random(2) = 0) then
+     chooseOption.select(['xamine'])
+    else
+     chooseOption.select(['ancel']);
+
+    wait(50 + random(3000));
+  end;
+
+  if (t <> TAB_BACKPACK) then
+    gameTabs.openTab(t);
+end;
+
+(*
+sleepAndMoveMouse
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure sleepAndMoveMouse(Time: Integer);
+
+Moved the mouse around for the specified "Time". Moves the mouse like a bored
+human would.
+
+.. note::
+
+    - by RsN
+    - Last Updated: 16 August 2013 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    sleepAndMoveMouse(1000 + random(2000));
+*)
+procedure sleepAndMoveMouse(Time: Integer);
+var
+  Moving: Boolean;
+  mx, my: Integer;
+  x, y, xv, yv: Extended;
+  gx, gy: Extended;
+  T: Integer;
+begin
+  GetMousePos(mx, my);
+
+  x := mx;
+  y := my;
+
+  if (Random(2) = 0) then
+    Moving := False
+  else
+    Moving := True;
+
+  gx := 130 + Random(500);
+  gy := 130 + Random(300);
+  T := GetTickCount();
+
+  repeat
+    Sleep(1+random(9));
+
+    if (Moving) then
+    begin
+      if (gx > x) then
+        xv := xv + 0.1
+      else
+        xv := xv - 0.1;
+
+      if (gy > y) then
+        yv := yv + 0.1
+      else
+        yv := yv - 0.1;
+
+      x := x + xv;
+      y := y + yv;
+
+      Mouse(Point(Round(x), Round(y)), MOUSE_MOVE);
+    end;
+
+    if (Random(100) = 0) then
+      Moving := not Moving;
+
+    if (Random(30) = 0) then
+    begin
+      gx := 130 + Random(500);
+      gy := 130 + Random(300);
+    end;
+
+  until(Abs(GetTickCount() - T) >= Time);
+end;
+
+(*
+pickUpMouse
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure pickUpMouse();
+
+Acts just like you picked your mouse off the pad, then sets it back down.
+
+.. note::
+
+    - by dark_sniper
+    - Last Updated: 15 August 2013 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    pickUpMouse();
+*)
+procedure pickUpMouse();
+var
+  cx, cy, XX, YY: Integer;
+begin
+  GetMousePos(cx, cy);
+
+  XX := cx;
+  YY := cy;
+
+  if (Random(2) = 0) then
+    mouse(point(cx - 3 - Random(5), cy - 8 - Random(17)), MOUSE_MOVE)
+  else
+    mouse(point(cx + 3, cy - 8 - Random(17)).rand(5, 0), MOUSE_MOVE);
+
+  Wait(1131 + Random(358));
+
+  if (Random(2) = 0) then
+    mouse(point(XX + 3, YY + 8).rand(5, 9), MOUSE_MOVE)
+  else
+    mouse(point(XX - 3 - Random(5), YY + 8), MOUSE_MOVE);
+end;
+
+(*
+mouseOffClient
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure mouseOffClient(Direction: Integer);
+
+Moves the mouse off the client in a specified direction.  Valid arguments for
+'Direction':
+
+    - OFF_CLIENT_TOP
+    - OFF_CLIENT_BOTTOM
+    - OFF_CLIENT_LEFT
+    - OFF_CLIENT_RIGHT
+    - OFF_CLIENT_RANDOM
+
+.. note::
+
+    - by Ollybest
+    - Last Updated: 21 August 2013 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    mouseOffClient(OFF_CLIENT_RANDOM);
+*)
+const
+  OFF_CLIENT_TOP = 0;
+  OFF_CLIENT_BOTTOM = 1;
+  OFF_CLIENT_LEFT = 2;
+  OFF_CLIENT_RIGHT = 3;
+  OFF_CLIENT_RANDOM = 4;
+procedure mouseOffClient(Direction: Integer);
+var
+  B: TBoxArray;
+  P: TPoint;
+  i, W, H, X, Y: Integer;
+begin
+  GetClientDimensions(W, H);
+  GetMousePos(X,Y);
+
+  if (X < 0) or (X > W) or (Y < 0) or (Y > H) then
+    exit;
+
+  SetLength(B, 4);
+
+  B[OFF_CLIENT_TOP] := [-300, -300, W, 0]; // top
+  B[OFF_CLIENT_BOTTOM] := [0, H, W, H +300];  // bottom
+  B[OFF_CLIENT_LEFT] := [0-300, 0, 0, H];   // left
+  B[OFF_CLIENT_RIGHT] := [W, 0, W +300, H];  // right
+
+  if (Direction = OFF_CLIENT_RANDOM) then
+    i := Random(4)
+  else
+    i := Direction;
+
+  P := Point(RandomRange(B[i].X1, B[i].X2), RandomRange(B[i].Y1, B[i].Y2));
+  Mouse(Point(P.X, P.Y), MOUSE_MOVE);
+end;
+
+(*
+smallRandomMouse
+~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure smallRandomMouse();
+
+Randomly moves the mouse in a max radius of 'radius' (default 80) of its current
+postion, has alot of gravity and wind so it can simulate a human flicking/spiraling
+the mouse.
+
+.. note::
+
+    - by Flight
+    - Last Updated: 21 August 2013 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    smallRandomMouse();
+*)
+procedure smallRandomMouse(radius: integer = 80);
+var
+  randSpeed: Extended;
+  x, y, rx, ry, fs: Integer;
+begin
+  fs := MouseSpeed;
+  mouseSpeed := randomRange(10, 20);
+  randSpeed := (random(MouseSpeed) / 2.0 + MouseSpeed) / 10.0;
+  getMousePos(x, y);
+
+  rx := randomRange(x-radius, x+radius);
+  ry := randomRange(y-radius, y+radius);
+
+  _humanWindMouse(x, y, rx, ry, 30, 55, (10.0/randSpeed), (12.0/randSpeed), (10.0*randSpeed));
+  MouseSpeed := fs;
+end;
+
+(*
+randomMouseSpeed
+~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure randomMouseSpeed(Amount, MinMS, MaxMS: Integer);
+
+Randomly changes the mousespeed by the amount (+/-) within the min and max
+mouse speed limit.
+
+.. note::
+
+    - by Ollybest
+    - Last Updated: Unknown
+
+Example:
+
+.. code-block:: pascal
+
+    randomMouseSpeed(3, 10, 20);
+
+*)
+procedure randomMouseSpeed(Amount, MinMS, MaxMS: Integer);
+var
+  MS, NewMS: Integer;
+begin
+  MS := MouseSpeed;
+  NewMS := RandomRange(MS - Amount, MS + Amount);
+
+  // setting the mousespeed to the max/min limit if needed
+  if NewMS > MaxMS then
+    NewMS := MaxMS;
+
+  if NewMS < MinMS then
+    NewMS := MinMS;
+
+  if InRange(NewMS, MinMS, MaxMS) then
+    MouseSpeed := NewMS
+end;
+
+(*
+randomCompass
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function randomCompass(MinMovement, MaxMovement: Integer; Return: Boolean): Boolean;
+
+Rotates the compass somewhere between MinMovement and MaxMovement.  Will return
+to original angle if Return is set to true.
+
+.. note::
+
+    - by Nebula
+    - Last Updated: Mar. 6th, 2011 by Nebula
+
+Example:
+
+.. code-block:: pascal
+
+    CompassMovement(10, 30, true);
+*)
+function randomCompass(MinMovement, MaxMovement: Integer; Return: Boolean): Boolean;
+var
+  StartAngle, Movement : Integer;
+begin
+  Result := False;
+  StartAngle := round(minimap.getAngleDegrees());
+
+  case Random(2) of
+    0: Movement := RandomRange(-MinMovement, -MaxMovement);
+    1: Movement := RandomRange(MinMovement, MaxMovement);
+  end;
+
+  minimap.setAngle(StartAngle + Movement);
+
+  if (Return = true) then
+  begin
+    wait(RandomRange(100,350));
+    minimap.setAngle(StartAngle);
+  end;
+
+  Result := true;
+end;
+
+(*
+randomCameraAngle
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure randomCameraAngle(endAngle: integer);
+
+Randomly changes the angle of the 3D game area's camera. Finishes depending on
+'endAngle'.  Valid arguments for 'endAngle':
+
+    - MS_ANGLE_HIGH
+    - MS_ANGLE_LOW
+    - MS_ANGLE_NONE
+
+.. note::
+
+    - by R1ch
+    - Last Updated: 23 August 2013 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    randomCameraAngle(MS_ANGLE_HIGH);
+*)
+procedure randomCameraAngle(endAngle: integer);
+var
+  Key: Byte;
+  B: Integer;
+begin
+  B := Random(2);
+
+  if (B = MS_ANGLE_LOW) then
+    Key := VK_UP
+  else
+    Key := VK_DOWN;
+
+  mainscreen.setAngle(B);
+
+  Wait(RandomRange(50, 300));
+  KeyDown(Key);
+  Wait(RandomRange(50, 300));
+  KeyUp(Key);
+  Wait(RandomRange(50, 300));
+
+  mainscreen.setAngle(endAngle);
+end;
+
+(*
+randomGameTab
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure randomGameTab(returnToOriginal: boolean = false);
+
+Switches to a random gametab, Will return to the original tab if 'returnToOriginal'
+ is set to true (set to false by default).
+
+.. note::
+
+    - by Olly
+    - Last Updated: 19 Novemeber 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    randomGameTab(true);
+*)
+procedure randomGameTab(returnToOriginal: boolean = false);
+var
+  tab, t: Integer;
+begin
+  if (not isLoggedIn()) then
+    exit();
+
+  t := gameTabs.getActiveTab();
+
+  repeat
+    tab := random(high(gameTabs.tabs));
+  until (tab <> t) and (tab <> TAB_TASK); // make sure it's a different tab
+
+  gameTabs.openTab(tab);
+  wait(randomRange(300, 1000));
+
+  if (returnToOriginal) then
+    gameTabs.openTab(t);
+end;
+
+(*
+dragRandomItem
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure dragRandomItem(excludeSlots: TIntegerArray = []);
+
+Moves an item in your backpack to a random free slot.  Will exclude all slots
+in the 'excludeSlots' array.  By default, it won't exclude any slots.
+
+.. note::
+
+    - by Ollybest
+    - Last Updated: 23 August 2013 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    dragRandomItem();
+*)
+procedure dragRandomItem(excludeSlots: TIntegerArray = []);
+var
+  i, fullL, emptyL: integer;
+  fullSlots, emptySlots: TIntegerArray;
+begin
+  if (not isLoggedIn()) or (tabBackpack.isFull()) or (tabBackpack.isEmpty()) then
+    exit();
+
+  // collecting full and empty inv slots
+  for i := BACKPACK_SLOT_LOW to BACKPACK_SLOT_HIGH do
+  begin
+    if (excludeSlots.isInArray(i)) then
+      continue;
+
+    if (tabBackpack.isItemInSlot(i)) then
+    begin
+      setLength(fullSlots, length(fullSlots) + 1);
+      fullSlots[fullL] := i;
+      inc(fullL);
+    end else begin
+      setLength(emptySlots, length(emptySlots) + 1);
+      emptySlots[emptyL] := i;
+      inc(emptyL);
+    end;
+  end;
+
+  if (length(fullSlots) > 0) and (length(emptySlots) > 0) then
+    tabBackpack.dragSlot(fullSlots[random(length(fullSlots))], emptySlots[random(length(emptySlots))]);
+end;
+
+(*
+mouseMovingObject
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure mouseMovingObject();
+
+Splits the screen up into boxes and hovers the one with the most pixel shifts.
+Will randomly right-click and examine the object.
+
+.. note::
+
+    - by Ollybest
+    - Last Updated: 17 September 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    mouseMovingObject();
+*)
+procedure mouseMovingObject();
+var
+  boxes: TBoxArray;
+  i, mostShift: integer;
+  tia: TIntegerArray;
+  b: TBox;
+begin
+  if (not isLoggedIn()) then
+    exit;
+
+  boxes := mainscreen.getBounds().split(30, 30);
+  tia := getPixelShift(boxes, 50 + random(50));
+
+  mostShift := 0;
+
+  for i := 0 to high(boxes) do
+    if (not boxes[i].overlap(mainScreen.playerBox)) then
+      if (tia[i] > mostShift) then
+      begin
+        mostShift := tia[i];
+        b := boxes[i];
+      end;
+
+  if (mostShift < 10) then
+    exit();
+
+  mouseBox(b, MOUSE_MOVE);
+
+  if (random(2) = 0) then
+    if (isMouseOverMenuOpen(b)) then
+    begin
+      fastClick(MOUSE_RIGHT);
+      chooseOption.select(['Examine', 'Exam', 'mine']);
+    end;
+
+  wait(300 + random(4000));
+end;
+
+(*
+exitTreasure
+~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function exitTreasure(): boolean;
+
+Finds and exits the annoying Treasure Chest pop up that can be dragged
+anywhere on the screen.
+
+.. note::
+
+    - by Coh3n & Ashaman88
+    - Last Updated: 4 February 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    exitTreasure();
+*)
+function exitTreasure(): boolean;
+const
+  CLOSE_BORDER_COLOR = 9145232;
+  CLOSE_BORDER_COLOR_HOVER = 12500676;
+  CLOSE_BORDER_LENGTH = 10;
+  CHEST_COLOR = 1716311;
+  CHEST_COLOR_COUNT = 90;
+var
+  w, h, i: integer;
+  b, clientArea: TBox;
+  tpa, tpa2: TPointArray;
+  atpa: T2DPointArray;
+begin
+  result := false;
+
+  getClientDimensions(w, h);
+  clientArea := [0, 0, w-1, h-1];
+
+  // "x" button (if mouse hovers "x" it changes colors, that's why there are two)
+  if (not findColorsTolerance(tpa, CLOSE_BORDER_COLOR, clientArea, 0, colorSetting(1))) and (not findColorsTolerance(tpa2, CLOSE_BORDER_COLOR_HOVER, clientArea, 0, colorSetting(1))) then
+    exit(false);
+
+  print('exitTreasure()', TDebug.HEADER);
+
+  tpa.combine(tpa2);
+
+  atpa := tpa.cluster(1);
+
+  for i := 0 to high(atpa) do
+  begin                //border length - top of "x" button
+    if (length(atpa[i]) = CLOSE_BORDER_LENGTH) then
+    begin
+      b := getTPABounds(atpa[i]);     //color of the chest
+      if countColorTolerance(CHEST_COLOR, intToBox(b.x1 - 67, b.y1 - 16, b.x2 - 23, b.y2 + 27), 10) > CHEST_COLOR_COUNT then
+      begin
+        mouseBox([b.x1, b.y1, b.x2, b.y2 + 15], MOUSE_LEFT);
+        wait(2000 + random(1000));
+        print('exitTreasure(): result = ' + toStr(result), TDebug.FOOTER);
+        exit(true);
+      end;
+    end;
+  end;
+
+  print('exitTreasure(): result = ' + toStr(result), TDebug.FOOTER);
+end;
+
+
+(*
+exitSquealOfFortune
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function exitSquealOfFortune(): boolean;
+
+Finds and exits the annoying Treasure Chest pop up that can be dragged
+anywhere on the screen. This version kept for legacy. To be removed
+
+.. note::
+
+    - by Coh3n & Ashaman88
+    - Last Updated: 4 February 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    exitSquealOfFortune();
+*)
+function exitSquealOfFortune(): boolean;
+begin
+  result := exitTreasure();
+end;
+
+(*
+findTicket
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function findTicket(var p: TPoint): boolean;
+
+Returns true if the Treasure spin ticket it found. Returns its
+coordinates in a TPoint 'p'.
+
+.. note::
+
+    - by Kyle Undefined
+    - Last Updated: 4 February 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    findTicket(p);
+*)
+function findTicket(var p: TPoint): boolean;
+var
+  oneFreeSpin: integer;
+begin
+  result := false;
+
+  if (not tabBackpack.isOpen()) then
+  begin
+    print('findTicket(): Backpack is not open, consider calling tabBackpack.open() first', TDebug.HINT);
+    exit();
+  end;
+
+  oneFreeSpin := DTMFromString('m1gAAAHic42JgYOABYjYgFodiTiAWAmJhIOZngACQPAuUD8JcUHFGqDg3kjk7Flsy3N+cDMZ9KfZgvGuJFcOcLkMUPg9UDyHMSCRGAAA8PBAn');
+
+  if (findDTM(oneFreeSpin, p.x, p.y, tabBackpack.getBounds())) then
+  begin
+    tabBackpack.mouseSlot(tabBackpack.pointToSlot(p), MOUSE_MOVE);
+    result := (isMouseOverText(['Claim', 'laim', 'Key', 'key', 'token'], 300));
+  end;
+
+  if not (result) then
+    p := [-1, -1];
+
+  freeDTM(oneFreeSpin);
+end;
+
+(*
+findSpinTicket
+~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function findSpinTicket(var p: TPoint): boolean;
+
+Depreciated.  Use findTicket().
+
+.. note::
+
+    - by Coh3n
+    - Last Updated: 06 February 2014 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    findSpinTicket(p);
+*)
+function findSpinTicket(var p: TPoint): boolean;
+begin
+  result := findTicket(p);
+end;
+
+(*
+closeAdWindow
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function closeAdWindow(): boolean;
+
+Finds and exits the wicked hood and dwarven army axe pop up ads.
+
+.. note::
+
+    - by litoris
+    - Last Updated: 17 August 2013 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    closeAdWindow();
+*)
+function closeAdWindow(): boolean;
+var
+  x, y, wid, hei, i: integer;
+  bmps: array [0..1] of integer;
+begin
+  getClientDimensions(wid, hei);
+
+  // red cross color
+  if (not findColorTolerance(x, y, 725899, 0, 0, wid - 1, hei - 1, 25)) then
+    exit(false);
+
+  bmps[0] := BitmapFromString(15, 15, 'meJxjYMACuIW7sQljATyik/kk5w' +
+             'BJIlXySy4gqB5oO1ABj/BsoEpB6UVAEpd7ZFSmBM+57dRyBqJFTG4' +
+             'ekB04+xqXYDOmmRqG8wMnXcu69A+iHkgC2fZNp4BsZPOBeoFcGeXZ' +
+             'ptYL3fuuhh7/67b8OZA0qT0FsQVIQszn4M2GKAapV5kCVG81/6X9r' +
+             'r+mc55yCVTBpYAMoEqgek7eUoigiFS3Yv4pjbW/Vac8A5LSWYc5eC' +
+             'u5+JvBKivhLgGqB6qUzTklsvCXcPJRedV+xaKzQDZ/wl6gFBCh+VF' +
+             'RtUm07Bp3LMg0Eck2I9Mp4hknOLPPsXFmYw09adlaoEp2HhCSlG4C' +
+             'aoe4ExcAmsPOVQRBuMxEBqxsyUBlQJKgSghgZgnGKg4Aa3dqTg==');
+
+  bmps[1] := BitmapFromString(8, 8, 'meJzj5Ing4K9FR9zhQDLl6i+runMQ' +
+        'ESADyEVmA0k4A64RyLY++heIkAWBSDzrOEQcyEAWlFz/B0jCGUBBH' +
+        'vMlcDZcDVCQS6AYSCKbCRLkLwQApS1D+w==');
+
+  for i := 0 to high(bmps) do
+    if (findBitmapToleranceIn(bmps[i], x, y, 0, 0, wid - 1, hei - 1, 5)) then
+    begin
+      mouse(point(x, y).rand(3), MOUSE_LEFT);
+      result := true;
+    end;
+
+  freeBitmaps(bmps);
+end;
+
+(*
+hoverSkill
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure hoverSkill(skill: integer);
+
+Hovers the skill 'skill'.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 23 October 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    hoverSkill(SKILL_ATTACK);
+*)
+procedure hoverSkill(skill: integer);
+var
+  t: integer;
+begin
+  t := gameTabs.getActiveTab();
+
+  if (t <> TAB_STATS) then
+    gameTabs.openTab(TAB_STATS);
+
+  mouseBox(tabStats.getSkillBox(skill), MOUSE_MOVE);
+
+  wait(50 + random(4500));
+
+  if (t <> TAB_STATS) then
+    gameTabs.openTab(t);
+end;
+
+(*
+hoverRandomSkill
+~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure hoverRandomSkill();
+
+Hovers a random skill.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 08 December 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    hoverSkill(SKILL_ATTACK);
+*)
+procedure hoverRandomSkill();
+var
+  t: integer;
+begin
+  t := gameTabs.getActiveTab();
+
+  if (t <> TAB_STATS) then
+    gameTabs.openTab(TAB_STATS);
+
+  mouseBox(tabStats.getSkillBox(randomRange(SKILL_ATTACK, SKILL_COUNT-1)), MOUSE_MOVE);
+
+  wait(50 + random(4500));
+
+  if (t <> TAB_STATS) then
+    gameTabs.openTab(t);
+end;
+
+(*
+hoverOnlineFriend
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure hoverOnlineFriend();
+
+Hovers an online friend.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 23 October 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    hoverOnlineFriend();
+*)
+procedure hoverOnlineFriend();
+var
+  tpa: TPointArray;
+  atpa: T2DPointArray;
+  r, t: integer;
+  b: TBox;
+begin
+  t := gameTabs.getActiveTab();
+
+  if (t <> TAB_FRIENDS) then
+    gameTabs.openTab(TAB_FRIENDS);
+
+  if (findColorsTolerance(tpa, 5301219, gameTabs.tabArea, 10, colorSetting(2, 0.02, 2.76))) then
+  begin
+    atpa := clusterTPAEx(tpa, 20, 3);
+    filterTPAsBetween(atpa, 0, 5);
+
+    if (high(atpa) > -1) then
+    begin
+      b := getTPABounds(atpa[random(high(atpa))]);
+      mouse(intToBox(gameTabs.tabArea.x1+10, b.y1, b.x2, b.y2).getRandomPoint());
+      wait(500 + random(2000));
+
+      if (random(2) = 0) then
+      begin
+        fastClick(MOUSE_RIGHT);
+        wait(400 + random(1500));
+
+        if (chooseOption.isOpen()) then
+          chooseOption.close();
+      end;
+    end;
+  end;
+
+  if (t <> TAB_FRIENDS) then
+    gameTabs.openTab(t);
+end;
+
+(*
+destroyTicket
+~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function destroyTicket(slot: integer): boolean;
+
+Destroys a ticket if found in the backpack.
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 12 February 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    destroyTicket(slot: integer);
+*)
+function destroyTicket(slot: integer): boolean;
+var
+  p: TPoint;
+  tpa: TPointArray;
+  atpa: T2DPointArray;
+begin
+  if (not tabBackpack.isOpen()) then
+  begin
+    print('destroyTicket(): Backpack is not open, consider calling tabBackpack.open() first', TDebug.HINT);
+    exit();
+  end;
+
+  tabBackpack.mouseSlot(slot, MOUSE_RIGHT);
+
+  if chooseOption.select(['Destroy', 'estr', 'stro']) then
+    if waitColorCountRange(379903, 0, intToBox(110, 440, 475, 460), 5000, 304, 304) then
+    begin
+      findColorsTolerance(tpa, 1137455, intToBox(360, 482, 445, 510), 33, colorSetting(1)); // color of the green "Yes" button and a box around the button
+      atpa := tpa.cluster(10);
+      atpa.sortBySize;
+
+      if length(atpa) > 0 then
+      begin
+        mouseBox(atpa[0].getBounds(), MOUSE_LEFT);
+        result := tabBackpack.waitForShift(randomRange(3000, 4000));
+      end;
+    end;
+
+  if (result) then
+    print('destroyTicket(): Successfully destroyed spin ticket', TDebug.SUB);
+end;
+
+(*
+claimTicket
+~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function claimTicket(): boolean;
+
+Claims a spin tick if found in the backpack.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 4 February 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    claimTicket();
+*)
+function claimTicket(): boolean;
+var
+  p: TPoint;
+  t: integer;
+begin
+  if (findTicket(p)) then
+  begin
+    tabBackpack.mouseSlot(tabBackpack.pointToSlot(p), MOUSE_LEFT);
+
+    t := (getSystemTime() + randomRange(2000, 3000));
+    repeat
+      if not (tabBackpack.isItemInSlot(tabBackpack.pointToSlot(p))) then
+        result := true;
+
+      if conversationBox.continue(true, true) then
+        break;
+
+      wait(20 + random(20));
+    until (getSystemTime() >= t) or (result);
+  end;
+
+  if (result) then
+  begin
+    print('claimTicket(): Successfully claimed spin ticket', TDebug.SUB);
+    wait(200 + random(400))
+  end
+    if (p.x <> -1) then
+      destroyTicket(tabBackpack.pointToSlot(p));
+end;
+
+(*
+claimSpinTicket
+~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function claimSpinTicket(): boolean;
+
+Claims a spin tick if found in the backpack.
+Temporary to be replaced with claimTicket.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 4 February 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    claimSpinTicket();
+*)
+function claimSpinTicket(): boolean;
+begin
+  result := claimTicket();
+end;
+
+(*
+boredHuman
+~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure boredHuman(returnToStartAngle: boolean = true);
+
+Performs 3-11 times:
+    * Rotates the cam,
+    * Moves the mouse around MainScreen,
+    * If it finds mouse-over text it will randomly interact with chooseoption menu.
+
+.. note::
+
+    - by WT-Fakawi
+    - Last Updated: 08 December 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    boredHuman();
+*)
+procedure boredHuman(returnToStartAngle: boolean = true);
+var
+  startAngle: extended;
+  i, r: integer;
+  b: TBox;
+begin
+  startAngle := minimap.getAngleDegrees();
+  r := randomRange(3, 11);
+
+  for i := 0 to r do
+  begin
+    mouse(mainScreen.getBounds().getRandomPoint());
+
+    case random(2) of
+      0: typeByteWait(VK_LEFT, 35 + random(1155));
+      1: typeByteWait(VK_RIGHT, 35 + random(1155));
+    end;
+
+    if (random(15) = 5) then
+    begin
+      fastClick(MOUSE_RIGHT);
+      wait(random(600));
+
+      if (chooseOption.isOpen()) then
+        chooseOption.close();
+
+      continue;
+    end;
+
+    if (isMouseOverMenuOpen(b, random(50))) then
+    begin
+      fastClick(MOUSE_RIGHT);
+      wait(random(500));
+
+      if (random(2) = 0) then
+        chooseOption.select(['xamine'])
+      else
+        chooseOption.close();
+    end;
+  end;
+
+  if (returnToStartAngle) then
+    minimap.setAngle(round(startAngle));
+end;
+
+{$f+}
+

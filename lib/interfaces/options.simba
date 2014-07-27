@@ -1,0 +1,241 @@
+(*
+Options
+=======
+
+The options file holds functions and procedures that are used to interact with
+the Runescape options menu.
+
+The source for this file can be found `here <https://github.com/SRL/SRL-6/blob/master/lib/interfaces/options.simba>`_.
+
+*)
+
+{$f-}
+
+(*
+type TRSOptions
+~~~~~~~~~~~~~~~
+
+A type that stores functions and properties of the Runescape options menu.
+*)
+type
+  TRSOptions = record(TRSInterface)
+    __placeholder: byte;
+  end;
+
+(*
+var options
+~~~~~~~~~~~
+
+Variable that stores functions and properties of the Runescape options menu.
+
+Example:
+
+.. code-block:: pascal
+
+    if (options.open()) then
+      writeln('Options interface opened, preparing to logout');
+*)
+var
+  options: TRSOptions;
+
+{*
+TRSOptions.__init()
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure TRSOptions.__init();
+
+Initiates the options default values. Called at the end of this file.
+
+.. note::
+
+    - by Coh3n
+    - Last updated: 23 July 2013 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    options.__init();
+*}
+{$IFNDEF CODEINSIGHT}
+procedure TRSOptions.__init();
+begin
+  with self do
+  begin
+    name := 'RS Options Menu';
+    ID := ID_INTERFACE_OPTIONS;
+    parentID := -1;
+    static := true;
+  end;
+end;
+{$ENDIF}
+
+{*
+TRSOptions.__find()
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSOptions.__find(): boolean;
+
+Finds and sets the bounds on the options interface. This allows the options menu
+to be interacted with on any screen size.  This function is called whenever
+TRSOptions.isOpen() is called.
+
+.. note::
+
+    - by Coh3n
+    - Last Updated: 23 July 2013 by Coh3n
+
+Example:
+
+.. code-block:: pascal
+
+    options.__find();
+*}
+{$IFNDEF CODEINSIGHT}
+function TRSOptions.__find(): boolean;
+var
+  wid, hei: integer;
+  tpa: TPointArray;
+  bds: TBox;
+begin
+  getClientDimensions(wid, hei);
+  result := true;
+
+  setBounds([round(wid / 2 - 100), round(hei / 2 - 188), round(wid / 2 + 100), round(hei / 2 + 187)]);
+end;
+{$ENDIF}
+
+(*
+TRSOptions.isOpen()
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSOptions.isOpen(): boolean;
+
+Returns true if the options interface is open.
+
+.. note::
+
+    - by Coh3n
+    - Last Updated: 23 July 2013 by Co3n
+
+Example:
+
+.. code-block:: pascal
+
+    if (options.isOpen()) then
+      writeln('Options menu is open!');
+*)
+function TRSOptions.isOpen(): boolean;
+begin
+  self.__find();
+
+  // gold color of the interface's text
+  result := (countColorTolerance(379903, self.x, self.y, self.x+self.w, self.y+self.h + 30, 10) = 135);
+end;
+
+(*
+TRSOptions.open()
+~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSOptions.open(): boolean;
+
+Opens the in-game options menu.
+
+.. note::
+
+    - by Coh3n
+    - Last Updated: 23 July 2013 by Co3n
+
+Example:
+
+.. code-block:: pascal
+
+    if (options.open()) then
+      writeln('We opened the options interface');
+*)
+function TRSOptions.open(): boolean;
+var
+  t, c: integer;
+begin
+  if (self.isOpen()) then
+    exit(true);
+
+  typeByte(VK_ESCAPE);
+
+  repeat
+    t := (getSystemTime() + (2000));
+
+    while (getSystemTime() < t) do
+    begin
+      if (self.isOpen()) then
+      begin
+        result := true;
+        break(2);
+      end;
+
+      wait(50 + random(50));
+    end;
+
+    inc(c);
+    typeByte(VK_ESCAPE);
+
+  until(c > 3);
+end;
+
+function TRSOptions._getOptions(var button: TBoxArray; var text: TStringArray): boolean;
+var
+  tpa : TPointArray;
+  atpa : T2DPointArray;
+  i: Integer;
+begin
+  if not self.isOpen() then
+    exit(false);
+
+  findColorsTolerance(tpa, 5927515, self.getBounds(), 17, colorSetting(2, 1.42, 0.39));
+
+  atpa := tpa.cluster(3);
+  atpa.filterBetween(0, 175);
+  atpa.sortBySize;
+
+  for i := 0 to high(atpa) do
+  begin
+    setLength(button, length(button) + 1);
+    button[high(button)] := atpa[i].getBounds();
+    setLength(text, length(text) + 1);
+    text[high(text)] := (trim(tesseractgettext(button[high(button)], FILTER_SMALL_CHARS)));
+  end;
+end;
+
+function TRSOptions.selectOption(txt: TStringArray): boolean;
+var
+  texts: TStringArray;
+  i, j: Integer;
+  b: TBoxArray;
+begin
+  if not self.Open() then
+    exit(false);
+
+  self._getOptions(b, texts);
+
+  for i := 0 to high(txt) do
+    for j := 0 to high(texts) do
+      if (pos(txt[i], texts[j]) > 0) then
+      begin
+        mouseBox(b[j], MOUSE_LEFT);
+        exit(true);
+      end;
+end;
+
+begin
+  options.__init();
+end;
+
+{$f+}

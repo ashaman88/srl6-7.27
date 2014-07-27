@@ -1,0 +1,244 @@
+(*
+ToolScreen
+==========
+
+The toolscreen file holds functions and procedures that are used in the
+Runescape toolscreen screen.
+
+The source for this file can be found `here <https://github.com/SRL/SRL-6/blob/master/lib/interfaces/toolscreen.simba>`_.
+
+*)
+
+{$f-}
+
+(*
+type TRSToolScreen
+~~~~~~~~~~~~~~~~~~
+
+A type that stores the tool interface properties.
+*)
+type
+  TRSToolScreen = type TRSInterface;
+
+(*
+var toolScreen
+~~~~~~~~~~~~~~
+
+Variable that stores functions and properties of the Runescape production interface.
+
+Example:
+
+.. code-block:: pascal
+
+    if (toolScreen.isOpen() then
+      writeln('Tool screen is open!');
+*)
+var
+  toolScreen: TRSToolScreen;
+
+{*
+TRSToolScreen.__init
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure TRSToolScreen.__init();
+
+Initializes the TRSToolScreen.
+
+.. note::
+
+    - by footballjds
+    - Last Updated: 14 December 2013 by footballjds
+
+Example:
+
+.. code-block:: pascal
+
+    toolScreen.__init();
+*}
+{$IFNDEF CODEINSIGHT}
+procedure TRSToolScreen.__init();
+begin
+  with (self) do
+  begin
+    name := 'RS Choose Tool Screen';
+    ID := ID_INTERFACE_TOOL;
+    parentID := -1;
+    static := false;
+  end;
+end;
+{$ENDIF}
+
+(*
+TRSToolScreen.__find
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSToolScreen.__find(): boolean;
+
+Returns true if the tools screen is detected, and sets the bounds
+
+.. note::
+
+    - by Ashaman88
+    - Last Updated: 28 February 2014 by Ashaman88
+
+Example:
+
+.. code-block:: pascal
+
+    if (toolScreen.__find()) then
+      writeln('bounds are set!');
+*)
+function TRSToolScreen.__find(): boolean;
+const
+  TEXT_COLOR = 2070783;
+  BUTTON_LENGTH = 54;
+var
+  tpa: TPointArray;
+  atpa: T2DPointArray;
+  i, hh: integer;
+  b: TBox;
+  p: TPoint;
+begin
+  result := false;
+
+  if (not findColors(tpa, TEXT_COLOR, getClientBounds())) then
+    exit();
+
+  atpa := tpa.cluster(5);
+  hh := high(atpa);
+
+  for i := 0 to hh do
+    if (length(atpa[i]) = BUTTON_LENGTH) then
+    begin
+      b := atpa[i].getBounds();
+      if (findText(p, TEXT_COLOR, 0, ['Knife'], [StatChars], b)) then
+      begin
+        self.setBounds([b.x1 - 184, b.y1 - 64, b.x2 + 184, b.y2 + 131]);
+        exit(true);
+      end;
+    end;
+end;
+
+(*
+TRSToolScreen.isOpen
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSProductionScreen.isOpen(waitTime: integer = 0): boolean;
+
+Returns true if the production screen is open, includes a optional parameter
+'waitTime' (default 0) which will search for the production screen until
+'waitTime' is reached.
+
+.. note::
+
+    - by footballjds
+    - Last Updated: 14 December 2013 by footballjds
+
+Example:
+
+.. code-block:: pascal
+
+    if (productionScreen.isOpen()) then
+      writeln('it''s open!');
+*)
+function TRSToolScreen.isOpen(waitTime: integer = 0): boolean;
+const
+  BORDER_COLOR = 1388125;
+var
+  t: integer;
+  borderTPA: TPointArray;
+  borders: TIntegerArray;
+begin
+  t := (getSystemTime() + waitTime);
+
+  borderTPA := tpaFromBox(intToBox(self.x1 + 31, self.y1 + 55, self.x1 + 361, self.y1 + 55));
+
+  repeat
+    if (self.x1 - self.x2 = 0) then
+      result := self.__find() else
+      begin
+        borders := getColors(borderTPA, true);
+
+        if (length(borders) = 1) then
+          if (borders[0] = BORDER_COLOR) then
+            exit(true);
+      end;
+
+    wait(20 + random(20));
+  until (getSystemTime() >= t) or (result);
+end;
+
+(*
+TRSToolScreen.select
+~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSToolScreen.select(tool: string): boolean;
+
+Attempts to select the tool, returns if succesfull or not.
+
+.. note::
+
+    - by footballjds
+    - Last Updated: 14 December 2013 by footballjds
+
+Example:
+
+.. code-block:: pascal
+
+    if (toolScreen.select('Knife')) then
+      writeln('We started making something!');
+*)
+function TRSToolScreen.select(tool: String; key: boolean = true): boolean;
+const
+  TEXT_COLOR = 2070783;
+var
+  textArea: TBox;
+  boxArr: TBoxArray;
+  i, timeout: integer;
+  p: TPoint;
+begin
+  result := false;
+
+  if (not self.isOpen()) then
+    exit();
+
+  textArea := [self.x1, self.y1 + 55, self.x2, self.y2 - 125];
+  boxArr := grid(3, 1, 50, 50, 102, 0, [self.x1 + 93, self.y1 + 113]);
+
+  result := (findText(p, TEXT_COLOR, 5, [string(tool)], [StatChars], textArea));
+
+  if (result) then
+    for i := 0 to high(boxArr) do
+      if (pointInBox([p.x + 20, p.y + 50], boxArr[i])) then
+      begin
+        if key then
+        begin
+          timeOut := (getSystemTime() + randomRange(1500, 1900));
+          repeat
+            multiType(toStr(i+1), randomRange(30, 50), 2, false);
+            wait(100 + random(50));
+            result := (not self.isOpen());
+          until((getSystemTime() > timeOut) or result);
+
+          if (result) then
+            exit();
+        end;
+        mouseBox(boxArr[i], MOUSE_LEFT);
+      end;
+
+  print('TRSToolScreen.select(): result = ' + lowercase(boolToStr(result)), TDebug.SUB);
+end;
+
+begin
+  toolScreen.__init();
+end;
+
+{$f+}

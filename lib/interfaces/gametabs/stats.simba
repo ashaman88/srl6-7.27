@@ -1,0 +1,324 @@
+(*
+Stats
+=====
+
+The Stats file holds functions and procedures that are used in the
+Runescape Stats gametab.
+
+*)
+
+{$f-}
+
+(*
+Constant: Skill type
+~~~~~~~~~~~~~~~~~~~~
+
+Integer constants that represent the two different types of skill 'types' when
+reading a skill level, there is either a static skill or a dynamic skill level,
+the dynamic skill level is the level that changes when you boost a skill.
+
+*)
+const
+  SKILL_STATIC = 1;
+  SKILL_DYNAMIC = 0;
+
+{*
+Constant: Skill color
+~~~~~~~~~~~~~~~~~~~~~
+
+Integer constants that represent the color of the skill text.
+
+*}
+const
+  __COLOR_STATS = 36095;
+
+{*
+Constant: Skill info type
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+String constants that represent the different skill info types.
+
+*}
+const
+  INFO_CURRENT_XP = 'Current';
+  INFO_REMAINDER = 'Remainder';
+  INFO_NEXT_LEVEL = 'Next level';
+
+(*
+type TRSTabStats
+~~~~~~~~~~~~~~~~
+
+A type that stores functions and properties of the Runescape Stats gametab.
+
+*)
+type
+  TRSTabStats = record(TRSInterface)
+    tabIndex: integer;
+  end;
+
+(*
+var tabStats
+~~~~~~~~~~~~
+
+Variable that stores functions and properties of the Runescape Stats tab.
+
+*)
+var
+  tabStats: TRSTabStats;
+
+{*
+TRSTabStats.__init
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    procedure TRSTabStats.__init();
+
+Initiates the tabStats variable. Called at the end of this file.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 14 September 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    tabStats.__init();
+*}
+{$IFNDEF CODEINSIGHT}
+procedure TRSTabStats.__init();
+begin
+  with self do
+  begin
+    name := 'RS Stats tab';
+    ID := ID_INTERFACE_TAB_STATS;
+    tabIndex := TAB_STATS;
+    parentID := -1;
+    static := true;
+  end;
+end;
+{$ENDIF}
+
+(*
+TRSTabStats.isOpen
+~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSTabStats.isOpen(): boolean;
+
+Will return if the stats tab is open or not.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 14 September 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    if (tabStats.isOpen()) then
+      writeln('The stats tab is currently open!');
+*)
+function TRSTabStats.isOpen(): boolean;
+const
+  BAR_COLOR = 7056896;
+begin
+  result := (gameTabs.isTabActive(self.tabIndex));
+
+  if (not result) then
+    result := (getColor(gameTabs.tabArea.x1 + 95, gameTabs.tabArea.y2 -27) = 7056896);
+end;
+
+(*
+TRSTabStats.open
+~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSTabStats.open(): boolean;
+
+Attempts to open the stats gametab, will return if succesfull or not.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 14 September 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    if (tabStats.open()) then
+      writeln('We opened the stats tab');
+*)
+function TRSTabStats.open(): boolean;
+begin
+  result := self.isOpen();
+
+  if (not result) then
+    result := gameTabs.openTab(self.tabIndex);
+end;
+
+(*
+TRSTabStats.getSkillBox
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSTabStats.getSkillBox(skill: integer): TBox;
+
+Returns the bounds of where the skill is located.
+
+.. note::
+
+    - by Olly
+    - Last Updated: 14 September 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    b := tabStats.getSkillBox(SKILL_ATTACK);
+*)
+function TRSTabStats.getSkillBox(skill: integer): TBox;
+var
+  offSet: TPoint;
+begin
+  if (gameTabs.areMultiOpen()) then
+    offset := [0, 45]
+  else
+    offset := [3, 17];
+
+  result := gridBox(skill, 3, 9, 58, 22, 65, 27, point(gameTabs.tabArea.x1 + 38 + offset.x, gameTabs.tabArea.y1 + offset.y));
+end;
+
+(*
+TRSTabStats.getSkillLevel
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSTabStats.getSkillLevel(skill: integer; skillType: integer = SKILL_STATIC): integer;
+
+Returns the skill level of the 'skill', will return -1 if unsuccesfull.
+
+    * skill - The skill level to get (skill constants can be found in core/players.simba.
+    * skillType - Which skill value to read, the static or dynamic (SKILL_STATIC, SKILL_DYNAMIC).
+
+.. note::
+
+    - by Olly
+    - Last Updated: 14 September 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    writeln(tabStats.getSkillLevel(SKILL_ATTACK));
+*)
+function TRSTabStats.getSkillLevel(skill: integer; skillType: integer = SKILL_STATIC): integer;
+var
+  tpa: TPointArray;
+  atpa: T2DPointArray;
+  b: TBox;
+  s: string;
+begin
+  result := -1;
+
+  if (not self.open()) then
+    exit();
+
+  b := self.getSkillBox(skill);
+
+  if (b.x1 <> -1) then
+  begin
+    b.x1 := b.x1 + 23; // get rid of the skill iron
+    findColors(tpa, __COLOR_STATS, b);
+
+    atpa := tpa.split(10, 2);
+    atpa.sortFromMidPoint([b.x1, b.y2]);
+
+    if (length(atpa) <> 2) then
+    begin
+      print('tabStats.getSkillLevel(): Found too much or too little color', TDebug.ERROR);
+      exit();
+    end;
+
+    s := getTextAtEx(atpa[skillType].getBounds(), 0, 3, 3, __COLOR_STATS, 0, statChars, numbers);
+    result := strToIntDef(s, -1);
+
+    print('tabStats.getSkillLevel('+toStr(skill)+'): result = ' + intToStr(result));
+  end else
+    print('tabStats.getSkillLevel(): Was unable to get the skill box', TDebug.ERROR);
+end;
+
+(*
+TRSTabStats.getSkillInfo
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: pascal
+
+    function TRSTabStats.getSkillInfo(skill: integer; infoType: string): integer;
+
+Returns the skill's info.
+
+  * skill - what skill? constants found in players.simba
+  * infoType - what infomation to grab? constants found at top of file
+
+.. note::
+
+    - by Olly
+    - Last Updated: December 23, 2013 by Olly
+
+Example:
+
+.. code-block:: pascal
+
+    writeln(tabStats.getSkillInfo(SKILL_ATTACK, INFO_CURRENT_XP));
+*)
+function TRSTabStats.getSkillInfo(skill: integer; infoType: string): integer;
+var
+  b: TBox;
+  i, p: integer;
+  s: string;
+  boxArr: TBoxArray;
+begin
+  result := -1;
+
+  if (not self.open()) then
+    exit();
+
+  mouseBox(tabStats.getSkillBox(skill), MOUSE_MOVE);
+
+  if (isMouseOverMenuOpen(b, 1000 + random(100))) then
+  begin
+    boxArr := b.split(b.getWidth(), 14);
+    wait(200 + random(300));
+
+    for i := 0 to high(boxArr) do
+    begin
+      with (boxArr[i]) do
+        s := tesseractGetText(x1, y1, x2, y2, FILTER_SMALL_CHARS);
+
+      p := pos(infoType, s);
+
+      if (p > 0) then
+      begin
+        result := strToIntDef(extractFromStr(s, numbers), -1);
+        break();
+      end;
+    end;
+  end;
+
+  print('TRSTabStats.getSkillInfo(): result = '+intToStr(result), TDebug.SUB);
+end;
+
+begin
+  tabStats.__init();
+end;
+
+{$f+}
